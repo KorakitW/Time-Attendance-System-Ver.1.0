@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Time Attendance System Ver.1.0 By Korakit.W</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=K2D:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { font-family: 'K2D', sans-serif; }
+
+    body {
+      min-height: 100vh;
+      padding: 24px 12px;
+      background: linear-gradient(135deg, #0f172a, #1e293b, #334155);
+    }
+
+    .wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; grid-template-columns: 1fr; }
+
+    @media (min-width: 950px) {
+      .wrap { grid-template-columns: 380px 1fr; align-items: start; }
+    }
+
+    .card-box { background: #fff; border-radius: 20px; padding: 24px; box-shadow: 0 15px 35px rgba(0,0,0,.2); }
+
+    .clock { font-size: 38px; font-weight: 700; color: #0d6efd; }
+    .date { color: #666; margin-bottom: 16px; }
+    .btn { border-radius: 12px; height: 48px; font-weight: 600; }
+    .logo { font-size: 44px; }
+
+    .kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+    @media (max-width: 500px) { .kpi { grid-template-columns: repeat(2, 1fr); } }
+
+    .kpi-item { background: #f1f5f9; border-radius: 14px; padding: 12px; text-align: center; }
+    .kpi-item .num { font-size: 22px; font-weight: 700; color: #0d6efd; }
+    .kpi-item .label { font-size: 12px; color: #666; }
+
+    table { font-size: 13px; }
+    .table-card h5 { font-weight: 600; margin-bottom: 12px; }
+
+    #map { height: 220px; border-radius: 14px; margin-bottom: 10px; }
+    .geo-badge { font-weight: 600; }
+
+    .badge-late { background: #fff3cd; color: #856404; }
+    .badge-working { background: #d1e7dd; color: #0f5132; }
+    .badge-done { background: #e2e3e5; color: #41464b; }
+
+    .selfie-preview {
+      width: 56px; height: 56px; border-radius: 50%;
+      object-fit: cover; border: 2px solid #0d6efd; display: none;
+    }
+
+    .nav-pills .nav-link.active { background-color: #0d6efd; }
+    .role-tag { font-size: 12px; opacity: .8; }
+
+    .pager { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; }
+    .pager .pager-info { font-size: 12px; color: #666; }
+    .pager .btn { height: 34px; padding: 0 12px; border-radius: 10px; font-size: 13px; }
+
+    .admin-trigger-btn { text-align: left; }
+    .admin-trigger-btn .badge { font-size: 11px; }
+
+    .btn-circle {
+      width: 34px; height: 34px; padding: 0; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 14px; line-height: 1;
+    }
+
+    #apiWarning {
+      display: none; max-width: 1100px; margin: 0 auto 16px; background: #fff3cd;
+      color: #856404; padding: 10px 16px; border-radius: 12px; font-size: 13px; text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="apiWarning">
+    ⚠️ ยังไม่ได้ตั้งค่า API_URL — เปิดไฟล์ index.html แล้วแก้ตัวแปร <code>API_URL</code> ให้เป็น URL ของ Apps Script Web App ที่ Deploy แล้ว (ดู README.md)
+  </div>
+
+  <div id="inAppBrowserBanner" style="display:none; max-width:1100px; margin:0 auto 16px; background:#fff; border-radius:14px; padding:14px 16px; text-align:center; box-shadow:0 8px 20px rgba(0,0,0,.2);">
+    <div class="small mb-2">⚠️ คุณกำลังเปิดผ่านแอปแชท (LINE/Telegram) ซึ่งมักเปิดกล้องถ่ายเซลฟี่ไม่ได้</div>
+    <button class="btn btn-primary btn-sm" onclick="forceOpenExternalBrowser_()">🌐 เปิดในเบราว์เซอร์ (Chrome/Safari)</button>
+  </div>
+
+  <div class="wrap">
+
+    <!-- ================= LEFT: LOGIN / CLOCK ================= -->
+    <div class="d-flex flex-column gap-3">
+
+      <div class="card-box">
+       <div class="text-center">
+
+  <div class="logo-box mb-3">
+  <img
+  src="https://s.imgz.io/2026/07/28/7e553c741a52f6fd2.jpg"
+  alt="Logo"
+  style="
+    width:150px;
+    height:150px;
+    border-radius:50%;
+    object-fit:contain;
+  "
+>
+</div>
+  <h4 class="fw-bold text-primary mb-1">
+    Time Attendance System
+  </h4>
+
+  <div class="text-secondary mb-3">
+    Bosch Home Comfort Components (Thailand) Co., Ltd.
+  </div>
+
+  <div id="clock" class="clock"></div>
+  <div id="today" class="date"></div>
+
+</div>
+
+        <!-- LOGIN FORM -->
+        <div id="loginBox">
+          <div class="mb-3">
+            <label class="form-label">Select Employee</label>
+            <select id="employee" class="form-select">
+              <option value="">ชื่อ-นามสกุล</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">PIN Code</label>
+            <input type="password" class="form-control" id="pin" maxlength="10" placeholder="กรุณากรอก PIN Code">
+          </div>
+
+          <button class="btn btn-primary w-100" onclick="doLogin()">🔑 Sign In</button>
+        </div>
+
+        <!-- LOGGED-IN PANEL -->
+        <div id="appBox" style="display:none;">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <div class="fw-bold" id="welcomeName">-</div>
+              <div class="role-tag" id="welcomeRole">-</div>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="doLogout()">Log Out</button>
+          </div>
+
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <img id="selfiePreview" class="selfie-preview" alt="selfie">
+            <div id="geoStatus" class="small text-muted">📍 Checking location...</div>
+          </div>
+
+          <input type="file" id="photoInput" accept="image/*" capture="user" style="display:none">
+
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <button class="btn btn-success w-100" onclick="doClockIn()">🟢 เวลาเข้างาน</button>
+            </div>
+            <div class="col-6">
+              <button class="btn btn-warning w-100" onclick="doClockOut()">🔴 เวลาออกงาน</button>
+            </div>
+          </div>
+
+          <div id="message" class="alert alert-light text-center mt-2"><font style="color:blue">Normal</font></div>
+
+          <hr>
+
+          <!-- LEAVE REQUEST -->
+          <h6 class="fw-bold">📑 Leave Request</h6>
+          <select id="leaveType" class="form-select form-select-sm mb-2">
+            <option>ลาป่วย</option>
+            <option>ลากิจ(ล่วงหน้า)</option>
+			<option>ลากิจ(ฉุกเฉิน)</option>
+            <option>ลาพักร้อน</option>
+            <option>ลา(บริษัทส่งไปอบรม)</option>
+          </select>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><input type="date" id="leaveStart" class="form-control form-control-sm"></div>
+            <div class="col-6"><input type="date" id="leaveEnd" class="form-control form-control-sm"></div>
+          </div>
+          <textarea id="leaveReason" class="form-control form-control-sm mb-2" rows="2" placeholder="Note"></textarea>
+          <button class="btn btn-sm btn-outline-primary w-100 mb-3" onclick="doSubmitLeave()">Submit</button>
+
+          <div class="table-responsive" style="max-height:160px; overflow:auto;">
+            <table class="table table-sm">
+              <thead><tr><th>Leave Type</th><th>Date</th><th>Status</th></tr></thead>
+              <tbody id="myLeaveBody"><tr><td colspan="3" class="text-center text-muted">No Records Found</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMIN PANEL -->
+      <div class="card-box" id="adminBox" style="display:none;">
+        <h5 class="fw-bold">🛠️ Admin Panel</h5>
+
+        <div class="mb-2">
+          <label class="form-label small">Month-End Report</label>
+          <input type="month" id="reportMonth" class="form-control form-control-sm">
+        </div>
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-sm btn-outline-dark flex-fill" onclick="doExportPdf()">📄 Export PDF</button>
+          <button class="btn btn-sm btn-outline-dark flex-fill" onclick="doGeneratePayroll()">💰 Payroll Summary</button>
+        </div>
+
+        <button class="btn btn-sm btn-primary w-100 d-flex justify-content-between align-items-center admin-trigger-btn" onclick="openLeaveModal()">
+          <span>🏖️ Pending Approval</span>
+          <span class="badge bg-light text-primary" id="pendingLeaveBadge">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ================= RIGHT: DASHBOARD ================= -->
+    <div class="d-flex flex-column gap-3">
+
+      <div class="card-box">
+        <div class="kpi">
+          <div class="kpi-item"><div class="num" id="kpiEmployees">-</div><div class="label">Total Employees</div></div>
+          <div class="kpi-item"><div class="num" id="kpiPresent">-</div><div class="label">Today's Time-In</div></div>
+          <div class="kpi-item"><div class="num" id="kpiAbsent">-</div><div class="label">Absent Today</div></div>
+          <div class="kpi-item"><div class="num" id="kpiLate">-</div><div class="label">Late Today</div></div>
+          <div class="kpi-item"><div class="num" id="kpiEarly">-</div><div class="label">Early Leave</div></div>
+          <div class="kpi-item"><div class="num" id="kpiOt">-</div><div class="label">Overtime Hours This Month</div></div>
+        </div>
+
+        <div id="map"></div>
+        <div class="text-center small text-muted" id="orgLabel">Loading Work Location...</div>
+      </div>
+
+      <div class="card-box table-card">
+        <h5>📋 Today's Attendance List</h5>
+        <div class="table-responsive">
+          <table class="table table-sm table-striped align-middle">
+            <thead>
+              <tr><th>Personnel</th><th>Time In</th><th>Time Out</th><th>Working Hours</th><th>Status</th></tr>
+            </thead>
+            <tbody id="recordsBody"><tr><td colspan="5" class="text-center text-muted">Loading...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button class="btn btn-outline-secondary" id="recordsPrevBtn" onclick="changeRecordsPage(-1)">← Previous</button>
+          <div class="pager-info" id="recordsPageInfo">-</div>
+          <button class="btn btn-outline-secondary" id="recordsNextBtn" onclick="changeRecordsPage(1)">Next →</button>
+        </div>
+      </div>
+
+    </div>
+
+
+<!-- Persistent camera overlay: อยู่ใน DOM ถาวร ไม่ใช่ innerHTML ของ SweetAlert
+     เพื่อความเสถียรบน WebView ของมือถือ -->
+<div id="cameraOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.85);
+     z-index:2000; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:16px; padding:16px; max-width:420px; width:100%;">
+    <h6 class="fw-bold text-center mb-2">📸 Take Verification Photo</h6>
+    <video id="selfieVideo" autoplay playsinline muted
+           style="width:100%; border-radius:12px; background:#000;"></video>
+    <div class="small text-muted text-center mt-2">Position your face inside the frame and press capture</div>
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-secondary flex-fill" onclick="cancelCameraOverlay_()">Cancel</button>
+      <button class="btn btn-primary flex-fill" onclick="confirmCameraOverlay_()">📷 Take Photo</button>
+    </div>
+  </div>
+</div>
+  </div>
+
+  <script>
+    // ==========================================================
+    // 🔌 API CONNECTION (Apps Script Web App)
+    // ==========================================================
+    // 🔧 แก้บรรทัดนี้เป็น Web App URL ที่ได้จากการ Deploy Apps Script
+    // (Deploy > New deployment > Web app > Execute as: Me > Who has access: Anyone)
+    // รูปแบบจะเป็น: https://script.google.com/macros/s/XXXXXXXXXXXX/exec
+    const API_URL = "https://script.google.com/macros/s/AKfycbxp6EINqrOpjda7O-jmVo646EsVtAcQRA5v3fkG_igUZr34VMkDxXAsSMLRdQUApLWugQ/exec";
+
+    if (!API_URL || API_URL.indexOf("YOUR_") === 0) {
+      document.getElementById("apiWarning").style.display = "block";
+    }
+
+    /**
+     * เรียกฟังก์ชันฝั่ง Apps Script ผ่าน fetch()
+     * ใช้ Content-Type: text/plain โดยตั้งใจ (ไม่ใช่ application/json)
+     * เพื่อให้ browser จัดเป็น "simple request" และไม่ยิง CORS preflight (OPTIONS)
+     * ซึ่ง Apps Script Web App ไม่รองรับการตอบ preflight เอง
+     */
+    function callApi(action, params) {
+      return fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: action, params: params || [] })
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        });
+    }
+
+    let currentEmployee = null;
+    let lastPin = '';
+    let lastPosition = null;
+    let map, orgCircle, orgMarker, meMarker;
+
+    let cameraOverlayStream = null;
+    let cameraOverlayResolve = null;
+    let cameraOverlayReject  = null;
+
+    // ======================
+    // PAGINATION STATE
+    // ======================
+    const RECORDS_PER_PAGE = 10;
+    let allRecords = [];
+    let recordsPage = 1;
+
+    const LEAVE_PER_PAGE = 3;
+    let allPendingLeaves = [];
+    let leavePage = 1;
+
+    document.addEventListener("DOMContentLoaded", function () {
+      loadEmployees();
+      loadDashboard();
+      initMap();
+      watchLocation();
+
+      updateClock();
+      setInterval(updateClock, 1000);
+      setInterval(loadDashboard, 30000); // รีเฟรช Dashboard อัตโนมัติทุก 30 วิ
+      setInterval(refreshPendingLeaveBadge, 30000); // รีเฟรชจำนวนคำขอลารออนุมัติทุก 30 วิ
+
+      checkInAppBrowser_();
+    });
+
+    // ======================
+    // 🚪 ตรวจจับเบราว์เซอร์ในแอป (LINE/Telegram/FB/IG) แล้วชวนออกไปเปิดใน Chrome/Safari
+    // ======================
+    // เว็บวิวพวกนี้บล็อกกล้อง (getUserMedia) เสมอ และบางเครื่อง (โดยเฉพาะ LINE บน iOS) ยังบล็อก
+    // แม้แต่ input capture ด้วย เพราะตัวแอปแม่ไม่ได้รับสิทธิ์กล้องจากระบบปฏิบัติการ ทางที่ชัวร์ที่สุด
+    // คือให้ผู้ใช้เปิดผ่านเบราว์เซอร์จริง จึงเตือนตั้งแต่หน้าแรกเลย ไม่ต้องรอให้กดปุ่มแล้วเจอปัญหาก่อน
+    function isInAppBrowser_() {
+      const ua = navigator.userAgent || '';
+      return /Line\//i.test(ua) || /Telegram/i.test(ua) || /FBAN|FBAV/i.test(ua) || /Instagram/i.test(ua);
+    }
+
+    function checkInAppBrowser_() {
+      if (!isInAppBrowser_()) return;
+
+      document.getElementById("inAppBrowserBanner").style.display = "block";
+
+      Swal.fire({
+        icon: 'warning',
+        title: 'แนะนำให้เปิดในเบราว์เซอร์ปกติ',
+        html: 'คุณกำลังเปิดผ่านแอปแชท (LINE/Telegram) ซึ่งมักเปิดกล้องถ่ายเซลฟี่ไม่ได้<br>' +
+              'กดปุ่มด้านล่างเพื่อลองเปิดใน Chrome/Safari โดยตรง',
+        showCancelButton: true,
+        confirmButtonText: '🌐 เปิดในเบราว์เซอร์',
+        cancelButtonText: 'ใช้ต่อในแอปนี้ก่อน'
+      }).then(function (res) {
+        if (res.isConfirmed) forceOpenExternalBrowser_();
+      });
+    }
+
+    // พยายามเด้งออกไปเปิดลิงก์ปัจจุบันในเบราว์เซอร์จริงให้อัตโนมัติ
+    // Android: ใช้ intent:// เปิด Chrome ตรงๆ ได้ผลดีเกือบทุกกรณี
+    // iOS: ใช้ scheme x-safari-https:// ซึ่งได้ผลในหลายกรณีแต่ไม่ 100% (ข้อจำกัดของ Apple)
+    //      ถ้าไม่สำเร็จ จะโชว์วิธีกดเองสำรองให้ทันที
+    function forceOpenExternalBrowser_() {
+      const ua = navigator.userAgent || '';
+      const isAndroid = /Android/i.test(ua);
+      const isIOS = /iPhone|iPad|iPod/i.test(ua);
+      const currentUrl = window.location.href;
+      const urlNoScheme = currentUrl.replace(/^https?:\/\//, '');
+
+      if (isAndroid) {
+        window.location.href = 'intent://' + urlNoScheme + '#Intent;scheme=https;package=com.android.chrome;end';
+        // เผื่อ intent:// ไม่ทำงาน (ไม่มี Chrome หรือเวอร์ชันเก่า) ให้โชว์วิธีสำรองหลังจากรอสักครู่
+        setTimeout(showManualOpenInstructions_, 1500);
+        return;
+      }
+
+      if (isIOS) {
+        window.location.href = 'x-safari-https://' + urlNoScheme;
+        setTimeout(showManualOpenInstructions_, 1500);
+        return;
+      }
+
+      showManualOpenInstructions_();
+    }
+
+    function showManualOpenInstructions_() {
+      const currentUrl = window.location.href;
+      const canCopy = navigator.clipboard && navigator.clipboard.writeText;
+      Swal.fire({
+        icon: 'info',
+        title: 'เปิดลิงก์นี้ในเบราว์เซอร์',
+        html:
+          'หากไม่ได้เด้งไปเบราว์เซอร์อัตโนมัติ กรุณาแตะ <b>⋮ หรือ ...</b> มุมขวาบนของหน้าจอ แล้วเลือก ' +
+          '<b>"เปิดในเบราว์เซอร์" (Open in browser)</b><br><br>' +
+          (canCopy ? 'หรือกดปุ่มด้านล่างเพื่อคัดลอกลิงก์ไปวางใน' + (/iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'Safari' : 'Chrome') + ' เอง' : ''),
+        confirmButtonText: canCopy ? '📋 คัดลอกลิงก์' : 'เข้าใจแล้ว'
+      }).then(function (res) {
+        if (res.isConfirmed && canCopy) {
+          navigator.clipboard.writeText(currentUrl).then(function () {
+            Swal.fire('คัดลอกแล้ว', 'วางลิงก์ในเบราว์เซอร์ (Chrome/Safari) แล้วเปิดได้เลย', 'success');
+          });
+        }
+      });
+    }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("clock").innerHTML = now.toLocaleTimeString("th-TH");
+      document.getElementById("today").innerHTML = now.toLocaleDateString("th-TH", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric"
+      });
+    }
+
+    // ======================
+    // EMPLOYEES / LOGIN
+    // ======================
+
+    function loadEmployees() {
+      callApi("getEmployees", []).then(function (data) {
+        const select = document.getElementById("employee");
+        data.forEach(function (emp) {
+          const option = document.createElement("option");
+          option.value = emp.id;
+          option.text = emp.fullname + (emp.position ? " (" + emp.position + ")" : "");
+          select.appendChild(option);
+        });
+      }).catch(onFail);
+    }
+
+    function doLogin() {
+      const employeeId = document.getElementById("employee").value;
+      const pin = document.getElementById("pin").value;
+
+      if (!employeeId) { Swal.fire("Alert", "Please select employee", "warning"); return; }
+      if (!pin) { Swal.fire("Alert", "Please enter your PIN", "warning"); return; }
+
+      Swal.showLoading();
+
+      callApi("checkLogin", [employeeId, pin])
+        .then(function (res) {
+          Swal.close();
+          if (res.success) {
+            currentEmployee = res.employee;
+            lastPin = pin;
+            enterApp();
+          } else {
+            Swal.fire("เข้าสู่ระบบไม่สำเร็จ", res.message, "error");
+          }
+        })
+        .catch(onFail);
+    }
+
+    function enterApp() {
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("appBox").style.display = "block";
+      document.getElementById("welcomeName").innerText = "👋 " + currentEmployee.fullname;
+      document.getElementById("welcomeRole").innerText = currentEmployee.role + " • " + (currentEmployee.department || "");
+
+      if (currentEmployee.role === "Admin") {
+        document.getElementById("adminBox").style.display = "block";
+        refreshPendingLeaveBadge();
+      } else {
+        document.getElementById("adminBox").style.display = "none";
+      }
+
+      loadMyLeaves();
+    }
+
+    function doLogout() {
+      currentEmployee = null;
+      lastPin = "";
+      document.getElementById("pin").value = "";
+      document.getElementById("loginBox").style.display = "block";
+      document.getElementById("appBox").style.display = "none";
+      document.getElementById("adminBox").style.display = "none";
+    }
+
+    function onFail(err) {
+      Swal.close();
+      Swal.fire("เกิดข้อผิดพลาด", (err && err.message) || String(err), "error");
+    }
+
+    // ======================
+    // MAP + GEOFENCE
+    // ======================
+
+    function initMap() {
+      map = L.map('map').setView([13.75, 100.5], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+
+      callApi("getSettings", []).then(function (settings) {
+        const lat = settings.lat, lng = settings.lng, radius = settings.radius;
+        map.setView([lat, lng], 16);
+        orgMarker = L.marker([lat, lng]).addTo(map).bindPopup(settings.orgName || 'สถานที่ทำงาน');
+        orgCircle = L.circle([lat, lng], { radius: radius, color: '#0d6efd', fillOpacity: .15 }).addTo(map);
+        document.getElementById("orgLabel").innerText =
+          (settings.orgName || 'สถานที่ทำงาน') + " • Radius " + radius + " m. • Time " + settings.startTime + "-" + settings.endTime;
+      }).catch(onFail);
+    }
+
+    function watchLocation() {
+      if (!navigator.geolocation) {
+        document.getElementById("geoStatus").innerText = "⚠️ This device does not support GPS";
+        return;
+      }
+      navigator.geolocation.watchPosition(function (pos) {
+        lastPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+        if (meMarker) { meMarker.setLatLng([lastPosition.lat, lastPosition.lng]); }
+        else if (map) { meMarker = L.marker([lastPosition.lat, lastPosition.lng], { title: 'Your Location' }).addTo(map); }
+
+        if (orgCircle) {
+          const center = orgCircle.getLatLng();
+          const dist = map.distance([lastPosition.lat, lastPosition.lng], center);
+          const badge = document.getElementById("geoStatus");
+          if (dist <= orgCircle.getRadius()) {
+            badge.innerHTML = '<span class="geo-badge text-success">✓ Inside Area</span>';
+          } else {
+            badge.innerHTML = '<span class="geo-badge text-danger">✕ Outside Area ' + Math.round(dist) + ' m.</span>';
+          }
+        }
+      }, function () {
+        document.getElementById("geoStatus").innerHTML = '<span class="text-danger">⚠️ กรุณาอนุญาตการเข้าถึงตำแหน่ง (GPS)</span>';
+      }, { enableHighAccuracy: true, maximumAge: 5000 });
+    }
+
+    function getPosition() {
+      return new Promise(function (resolve, reject) {
+        if (lastPosition) { resolve(lastPosition); return; }
+        if (!navigator.geolocation) { reject(new Error("อุปกรณ์นี้ไม่รองรับ GPS")); return; }
+        navigator.geolocation.getCurrentPosition(
+          function (p) { resolve({ lat: p.coords.latitude, lng: p.coords.longitude }); },
+          function () { reject(new Error("กรุณาอนุญาตการเข้าถึงตำแหน่ง (GPS) เพื่อลงเวลา")); },
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      });
+    }
+
+    // ======================
+    // SELFIE CAPTURE
+    // ======================
+    // มือถือ (เบราว์เซอร์ปกติ เช่น Chrome/Safari): เปิดกล้องหน้าสด (getUserMedia) ในหน้าเว็บ
+    // มือถือ ในแอป LINE/Telegram/Facebook/Instagram: เว็บวิวเหล่านี้บล็อก getUserMedia
+    // ตามนโยบายของแอปเอง (แก้จากฝั่งเว็บไม่ได้) จึงสลับไปเรียก "แอปกล้อง" ของเครื่องผ่าน
+    // <input type="file" capture="user"> ให้อัตโนมัติทันที (ไม่ต้องให้ผู้ใช้ไปเปิดเบราว์เซอร์อื่น)
+    // ผลลัพธ์คือกดปุ่มแล้วกล้องเปิดขึ้นมาให้ถ่ายเซลฟี่ได้เหมือนกัน เพียงแต่เป็นแอปกล้องของเครื่อง
+    // แทนพรีวิวสดในหน้าเว็บ
+    // PC หรืออุปกรณ์ที่ไม่มีกล้อง/ไม่อนุญาตสิทธิ์: ใช้วิธีแนบไฟล์แบบเดิม
+
+    function captureSelfie() {
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const ua = navigator.userAgent || '';
+      const isInAppBrowser = /Line\//i.test(ua) || /Telegram/i.test(ua) || /FBAN|FBAV/i.test(ua) || /Instagram/i.test(ua);
+
+      // เว็บวิวในแอป LINE/Telegram/Facebook/Instagram: ข้าม getUserMedia ไปเลย
+      // เรียกแอปกล้องของเครื่องโดยตรงแบบอัตโนมัติ (capture="user" คือกล้องหน้า)
+      if (isInAppBrowser) {
+        return captureSelfieFromFileInput_();
+      }
+
+      if (isMobile && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        return captureSelfieFromCamera_().catch(function (err) {
+          if (err && err.userCancelled) throw err;
+          console.warn('getUserMedia failed:', err && err.name, err && err.message);
+          return captureSelfieFromFileInput_();
+        });
+      }
+      return captureSelfieFromFileInput_();
+    }
+
+    // วิธีแนบไฟล์ / เรียกแอปกล้องเครื่อง (ใช้เป็นค่าเริ่มต้นใน LINE/Telegram และเป็น fallback ที่อื่น)
+    function captureSelfieFromFileInput_() {
+      return new Promise(function (resolve, reject) {
+        const input = document.getElementById("photoInput");
+        input.value = "";
+
+        // 🛠️ FIX: ตรวจจับอาการ "เงียบกริ๊บ" — ถ้ากล้อง/แอปเลือกไฟล์เปิดสำเร็จ หน้าเว็บจะถูก blur
+        // (สลับไปแอปกล้อง) แต่ถ้าผ่านไปสักพักแล้วยังไม่ blur เลย แปลว่าเบราว์เซอร์ในแอปบล็อกไว้
+        // ทั้งหมด (พบมากใน LINE บน iOS) จึงเตือนผู้ใช้ทันทีแทนที่จะปล่อยให้รอเฉยๆ ไม่รู้ว่าเกิดอะไรขึ้น
+        let didBlur = false;
+        const onBlur = function () { didBlur = true; };
+        window.addEventListener('blur', onBlur, { once: true });
+        const stallTimer = setTimeout(function () {
+          if (!didBlur && isInAppBrowser_()) {
+            setStatusMessage_('⚠️ กล้องอาจเปิดไม่ได้ในแอปนี้ — แนะนำเปิดในเบราว์เซอร์ (ปุ่มด้านบน)', 'alert-warning');
+          }
+        }, 2500);
+
+        input.onchange = function () {
+          clearTimeout(stallTimer);
+          window.removeEventListener('blur', onBlur);
+          const file = input.files[0];
+          if (!file) { reject(new Error("กรุณาถ่ายภาพยืนยันตัวตนก่อนลงเวลา")); return; }
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            document.getElementById("selfiePreview").src = e.target.result;
+            document.getElementById("selfiePreview").style.display = "inline-block";
+            resolve(e.target.result);
+          };
+          reader.onerror = function () { reject(new Error("อ่านไฟล์ภาพไม่สำเร็จ")); };
+          reader.readAsDataURL(file);
+        };
+        input.click();
+      });
+    }
+
+    // เปิดกล้องหน้าในหน้าเว็บ (getUserMedia) ผ่าน overlay ที่อยู่ใน DOM ถาวร
+    function captureSelfieFromCamera_() {
+      return new Promise(function (resolve, reject) {
+        cameraOverlayResolve = resolve;
+        cameraOverlayReject  = reject;
+
+        const overlay = document.getElementById('cameraOverlay');
+        const video   = document.getElementById('selfieVideo');
+        overlay.style.display = 'flex';
+
+        openCameraStream_('user')
+          .then(function (stream) {
+            cameraOverlayStream = stream;
+            video.srcObject = stream;
+            var playPromise = video.play();
+            if (playPromise && playPromise.catch) {
+              playPromise.catch(function (e) {
+                console.warn('video.play() failed:', e);
+              });
+            }
+          })
+          .catch(function (err) {
+            closeCameraOverlay_();
+            reject(err);
+          });
+      });
+    }
+
+    function openCameraStream_(facing) {
+      if (!window.isSecureContext) {
+        // getUserMedia ใช้ไม่ได้เลยถ้าไม่ใช่ HTTPS/localhost — GitHub Pages เป็น HTTPS อยู่แล้วตามค่าเริ่มต้น
+        return Promise.reject(new DOMException('ต้องเปิดผ่าน HTTPS เท่านั้น', 'SecurityError'));
+      }
+      return navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: facing } },
+        audio: false
+      }).catch(function () {
+        return navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facing },
+          audio: false
+        });
+      });
+    }
+
+    function confirmCameraOverlay_() {
+      const video = document.getElementById('selfieVideo');
+      if (!video.videoWidth) {
+        Swal.fire('แจ้งเตือน', 'กล้องยังไม่พร้อม กรุณารอสักครู่แล้วลองใหม่', 'warning');
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+      document.getElementById("selfiePreview").src = dataUrl;
+      document.getElementById("selfiePreview").style.display = "inline-block";
+
+      closeCameraOverlay_();
+      if (cameraOverlayResolve) cameraOverlayResolve(dataUrl);
+      cameraOverlayResolve = null;
+      cameraOverlayReject  = null;
+    }
+
+    function cancelCameraOverlay_() {
+      const err = new Error("ยกเลิกการถ่ายภาพ");
+      err.userCancelled = true;
+      closeCameraOverlay_();
+      if (cameraOverlayReject) cameraOverlayReject(err);
+      cameraOverlayResolve = null;
+      cameraOverlayReject  = null;
+    }
+
+    function closeCameraOverlay_() {
+      document.getElementById('cameraOverlay').style.display = 'none';
+      if (cameraOverlayStream) {
+        cameraOverlayStream.getTracks().forEach(function (t) { t.stop(); });
+        cameraOverlayStream = null;
+      }
+    }
+
+    // ======================
+    // CLOCK IN / OUT
+    // ======================
+
+    function doClockIn() { runClock('clockIn'); }
+    function doClockOut() { runClock('clockOut'); }
+
+    // 🛠️ FIX: เดิมขอ GPS (async) ก่อนแล้วค่อยเรียกกล้องทีหลัง — เบราว์เซอร์ในแอปอย่าง LINE
+    // จะตัดสิทธิ์ "user gesture" ทิ้งถ้าสั่งเปิดกล้อง/ไฟล์หลังรอ Promise อื่นมาก่อน ทำให้กล้อง/ไฟล์
+    // ไม่เปิดเลยแบบไม่มี error ("เงียบกริ๊บ") จึงสลับมาเรียกกล้องทันทีเป็นอย่างแรก (ยังอยู่ในบริบท
+    // การกดปุ่มโดยตรง) แล้วค่อยขอ GPS ทีหลัง พร้อมอัปเดตข้อความสถานะทุกขั้นตอนไม่ให้เงียบอีก
+    function runClock(fnName) {
+      if (!currentEmployee) return;
+
+      setStatusMessage_('📸 Starting camera, please wait...', 'alert-info');
+
+      captureSelfie()
+        .then(function (photo) {
+          setStatusMessage_('📍 กำลังตรวจสอบตำแหน่ง GPS...', 'alert-info');
+          return getPosition().then(function (pos) {
+            setStatusMessage_('💾 Saving data...', 'alert-info');
+            Swal.showLoading();
+            return callApi(fnName, [currentEmployee.id, lastPin, pos.lat, pos.lng, photo]);
+          });
+        })
+        .then(onClockResult)
+        .catch(function (err) {
+          Swal.close();
+          const msg = (err && err.userCancelled) ? 'ยกเลิกการถ่ายภาพ' : ((err && err.message) || "ไม่สามารถอ่านตำแหน่ง/ภาพถ่ายได้");
+          setStatusMessage_(msg, 'alert-danger');
+          if (!(err && err.userCancelled)) {
+            Swal.fire("ไม่สำเร็จ", msg, "error");
+          }
+        });
+    }
+
+    function setStatusMessage_(text, alertClass) {
+      const box = document.getElementById("message");
+      box.className = "alert " + (alertClass || 'alert-light') + " text-center mt-2";
+      box.innerHTML = text;
+    }
+
+    function onClockResult(res) {
+      Swal.close();
+      const box = document.getElementById("message");
+
+      if (res.success) {
+        box.className = "alert alert-success text-center mt-2";
+        box.innerHTML = res.message + "<br>" + (res.time || "");
+        Swal.fire({ icon: "success", title: "เรียบร้อย", text: res.message });
+        loadDashboard();
+      } else {
+        box.className = "alert alert-danger text-center mt-2";
+        box.innerHTML = res.message;
+        Swal.fire({ icon: "error", title: "ไม่สำเร็จ", text: res.message });
+      }
+    }
+
+    // ======================
+    // DASHBOARD
+    // ======================
+
+    function loadDashboard() {
+      callApi("getDashboardData", []).then(renderDashboard).catch(function () {});
+    }
+
+    function renderDashboard(data) {
+      document.getElementById("kpiEmployees").innerText = data.employeeCount;
+      document.getElementById("kpiPresent").innerText = data.presentToday;
+      document.getElementById("kpiAbsent").innerText = data.absentToday;
+      document.getElementById("kpiLate").innerText = data.lateToday;
+      document.getElementById("kpiEarly").innerText = data.leftEarlyToday;
+      document.getElementById("kpiOt").innerText = data.monthOtHours;
+
+      allRecords = data.records || [];
+      const maxPage = Math.max(Math.ceil(allRecords.length / RECORDS_PER_PAGE), 1);
+      if (recordsPage > maxPage) recordsPage = maxPage;
+      renderRecordsPage();
+    }
+
+    function renderRecordsPage() {
+      const body = document.getElementById("recordsBody");
+      body.innerHTML = "";
+
+      const total = allRecords.length;
+      const maxPage = Math.max(Math.ceil(total / RECORDS_PER_PAGE), 1);
+      if (recordsPage < 1) recordsPage = 1;
+      if (recordsPage > maxPage) recordsPage = maxPage;
+
+      if (total === 0) {
+        body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">ยังไม่มีรายการวันนี้</td></tr>';
+      } else {
+        const start = (recordsPage - 1) * RECORDS_PER_PAGE;
+        const pageItems = allRecords.slice(start, start + RECORDS_PER_PAGE);
+
+        pageItems.forEach(function (r) {
+          const badgeClass = r.status === 'ทำงาน' ? 'badge-working' : 'badge-done';
+          const lateTag = r.late ? ' <span class="badge badge-late">สาย</span>' : '';
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" + r.name + "</td>" +
+            "<td>" + r.clockIn + "</td>" +
+            "<td>" + r.clockOut + "</td>" +
+            "<td>" + r.hours + "</td>" +
+            '<td><span class="badge ' + badgeClass + '">' + r.status + "</span>" + lateTag + "</td>";
+          body.appendChild(tr);
+        });
+      }
+
+      document.getElementById("recordsPageInfo").innerText =
+        total === 0 ? "0 รายการ" : "Page " + recordsPage + " / " + maxPage + " (All " + total + " Items)";
+      document.getElementById("recordsPrevBtn").disabled = recordsPage <= 1;
+      document.getElementById("recordsNextBtn").disabled = recordsPage >= maxPage;
+    }
+
+    function changeRecordsPage(delta) {
+      recordsPage += delta;
+      renderRecordsPage();
+    }
+
+    // ======================
+    // LEAVE (EMPLOYEE)
+    // ======================
+
+    function doSubmitLeave() {
+      if (!currentEmployee) return;
+      const type = document.getElementById("leaveType").value;
+      const start = document.getElementById("leaveStart").value;
+      const end = document.getElementById("leaveEnd").value;
+      const reason = document.getElementById("leaveReason").value;
+
+      if (!start || !end) { Swal.fire("แจ้งเตือน", "กรุณาเลือกวันที่ลา", "warning"); return; }
+
+      Swal.showLoading();
+      callApi("submitLeave", [currentEmployee.id, type, start, end, reason])
+        .then(function (res) {
+          Swal.close();
+          Swal.fire(res.success ? "เรียบร้อย" : "บันทึกไม่สำเร็จ", res.message, res.success ? "success" : "error");
+          if (res.success) {
+            document.getElementById("leaveReason").value = "";
+            loadMyLeaves();
+            refreshPendingLeaveBadge();
+          }
+        })
+        .catch(onFail);
+    }
+
+    function loadMyLeaves() {
+      if (!currentEmployee) return;
+      callApi("getMyLeaves", [currentEmployee.id])
+        .then(function (leaves) {
+          const body = document.getElementById("myLeaveBody");
+          body.innerHTML = "";
+          if (leaves.length === 0) {
+            body.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No Data</td></tr>';
+            return;
+          }
+          leaves.forEach(function (l) {
+            const tr = document.createElement("tr");
+            const rejectNote = (l.status === 'ไม่อนุมัติ' && l.rejectReason)
+              ? '<br><small class="text-danger">เหตุผล: ' + l.rejectReason + '</small>'
+              : '';
+            tr.innerHTML = "<td>" + l.type + "</td><td>" + l.start + " - " + l.end + "</td><td>" + l.status + rejectNote + "</td>";
+            body.appendChild(tr);
+          });
+        })
+        .catch(onFail);
+    }
+
+    // ======================
+    // ADMIN: คำขอลารออนุมัติ (แสดงเป็นป๊อปอัพ + แบ่งหน้า)
+    // ADMIN: คำขอลารออนุมัติ (แสดงเป็นป๊อปอัพ + แบ่งหน้า)
+    // ======================
+
+    function refreshPendingLeaveBadge() {
+      if (!currentEmployee || currentEmployee.role !== "Admin") return;
+      callApi("getAllLeaves", [])
+        .then(function (leaves) {
+          const pending = leaves.filter(function (l) { return l.status === 'รออนุมัติ'; });
+          const badge = document.getElementById("pendingLeaveBadge");
+          if (badge) badge.innerText = pending.length;
+        })
+        .catch(function () { /* เงียบไว้ ไม่ให้รบกวนผู้ใช้ */ });
+    }
+
+    function openLeaveModal() {
+      Swal.fire({
+        title: '📑 Leave requests pending approval',
+        html: '<div id="leaveModalBody" class="text-start">Loading...</div>',
+        width: 700,
+        showConfirmButton: false,
+        showCloseButton: true,
+        didOpen: function () {
+          fetchAndRenderLeaveModal();
+        }
+      });
+    }
+
+    function fetchAndRenderLeaveModal() {
+      const container = document.getElementById("leaveModalBody");
+      if (container) container.innerHTML = '<div class="text-center text-muted py-3">Loading...</div>';
+
+      callApi("getAllLeaves", [])
+        .then(function (leaves) {
+          allPendingLeaves = leaves.filter(function (l) { return l.status === 'รออนุมัติ'; });
+          const badge = document.getElementById("pendingLeaveBadge");
+          if (badge) badge.innerText = allPendingLeaves.length;
+
+          leavePage = 1;
+          renderLeaveModalPage();
+        })
+        .catch(function (err) {
+          const el = document.getElementById("leaveModalBody");
+          if (el) el.innerHTML = '<div class="alert alert-danger">โหลดข้อมูลไม่สำเร็จ: ' + ((err && err.message) || err) + '</div>';
+        });
+    }
+
+    function renderLeaveModalPage() {
+      const container = document.getElementById("leaveModalBody");
+      if (!container) return;
+
+      const total = allPendingLeaves.length;
+      const maxPage = Math.max(Math.ceil(total / LEAVE_PER_PAGE), 1);
+      if (leavePage < 1) leavePage = 1;
+      if (leavePage > maxPage) leavePage = maxPage;
+
+      let rowsHtml = '';
+      if (total === 0) {
+        rowsHtml = '<tr><td colspan="5" class="text-center text-muted">No pending leave requests</td></tr>';
+      } else {
+        const start = (leavePage - 1) * LEAVE_PER_PAGE;
+        const pageItems = allPendingLeaves.slice(start, start + LEAVE_PER_PAGE);
+        pageItems.forEach(function (l) {
+          rowsHtml +=
+            "<tr><td>" + l.name + "</td><td>" + l.type + "</td><td>" + l.start + " - " + l.end + "</td>" +
+            "<td>" + (l.reason ? l.reason : '<span class="text-muted">-</span>') + "</td>" +
+            '<td class="text-nowrap">' +
+            '<button class="btn btn-success btn-sm btn-circle me-1" title="อนุมัติ" onclick="approveLeave(\'' + l.id + '\')">✔</button>' +
+            '<button class="btn btn-danger btn-sm btn-circle" title="ไม่อนุมัติ" onclick="rejectLeave(\'' + l.id + '\')">✘</button>' +
+            '</td></tr>';
+        });
+      }
+
+      container.innerHTML =
+        '<div class="table-responsive"><table class="table table-sm">' +
+        '<thead><tr><th>Full name</th><th>Leave type</th><th>Date</th><th>Reason</th><th></th></tr></thead>' +
+        '<tbody>' + rowsHtml + '</tbody></table></div>' +
+        '<div class="pager">' +
+        '<button class="btn btn-outline-secondary btn-sm" onclick="changeLeavePage(-1)" ' + (leavePage <= 1 ? 'disabled' : '') + '>← Previous</button>' +
+        '<div class="pager-info">' + (total === 0 ? '0 Item' : 'Page ' + leavePage + ' / ' + maxPage + ' (Total ' + total + ' Item)') + '</div>' +
+        '<button class="btn btn-outline-secondary btn-sm" onclick="changeLeavePage(1)" ' + (leavePage >= maxPage ? 'disabled' : '') + '>Next →</button>' +
+        '</div>';
+    }
+
+    function changeLeavePage(delta) {
+      leavePage += delta;
+      renderLeaveModalPage();
+    }
+
+    function setLeaveModalBusy_(text) {
+      const container = document.getElementById("leaveModalBody");
+      if (container) container.innerHTML = '<div class="text-center text-muted py-3">' + text + '</div>';
+    }
+
+    // ✔ อนุมัติ: ทำทันทีโดยไม่ต้องระบุเหตุผล
+    function approveLeave(id) {
+      setLeaveModalBusy_('Saving...');
+      callApi("updateLeaveStatus", [id, 'อนุมัติ', ''])
+        .then(function (res) {
+          if (!res.success) { Swal.fire("ไม่สำเร็จ", res.message, "error"); }
+          fetchAndRenderLeaveModal();
+        })
+        .catch(function (err) {
+          onFail(err);
+          fetchAndRenderLeaveModal();
+        });
+    }
+
+    // ✘ ไม่อนุมัติ: ต้องกรอกเหตุผลก่อนถึงจะยืนยันได้
+    function rejectLeave(id) {
+      Swal.fire({
+        title: 'Leave request rejected',
+        input: 'textarea',
+        inputLabel: 'Reason for rejection (Required)',
+        inputPlaceholder: 'Reason..',
+        showCancelButton: true,
+        confirmButtonText: 'Confirm rejection',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#dc3545',
+        allowOutsideClick: function () { return !Swal.isLoading(); },
+        preConfirm: function (reason) {
+          if (!reason || !reason.trim()) {
+            Swal.showValidationMessage('Please enter the reason for rejection before confirming');
+            return false;
+          }
+          return callApi("updateLeaveStatus", [id, 'ไม่อนุมัติ', reason.trim()])
+            .then(function (res) {
+              if (!res.success) throw new Error(res.message);
+              return res;
+            })
+            .catch(function (err) {
+              Swal.showValidationMessage('บันทึกไม่สำเร็จ: ' + ((err && err.message) || err));
+            });
+        }
+      }).then(function () {
+        openLeaveModal();
+      });
+    }
+
+    // ======================
+    // ADMIN: PDF / Payroll
+    // ======================
+
+    function doExportPdf() {
+      const month = document.getElementById("reportMonth").value;
+      if (!month) { Swal.fire("Alert", "Please select a month", "warning"); return; }
+      Swal.showLoading();
+      callApi("exportMonthlyTimesheetPdf", [month])
+        .then(function (res) {
+          Swal.close();
+          if (res.success) { window.open(res.url, '_blank'); }
+          else { Swal.fire("Failed", res.message, "error"); }
+        })
+        .catch(onFail);
+    }
+
+    function doGeneratePayroll() {
+      const month = document.getElementById("reportMonth").value;
+      if (!month) { Swal.fire("Alert", "Please select a month", "warning"); return; }
+      Swal.showLoading();
+      callApi("generatePayroll", [month])
+        .then(function (res) {
+          Swal.close();
+          Swal.fire(res.success ? "Success" : "Failed", res.message, res.success ? "success" : "error");
+        })
+        .catch(onFail);
+    }
+
+  </script>
+
+</body>
+</html>
